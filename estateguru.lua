@@ -43,18 +43,18 @@ function RefreshAccount (account, since)
   content = HTML(connection:get("https://estateguru.co/investment/main"))
 
   available = content:xpath('/html/body/div[1]/div[2]/div[3]/div/h2/div/div/div/div[1]/h2'):text()
-  available = string.gsub(available, "€", "")
+  available = string.gsub(string.gsub(available, "€", ""), ",", ".")
 
   earnings = content:xpath('/html/body/div[1]/div[2]/div[3]/div/h2/div/div/div/div[2]/h2'):text()
-  earnings = string.gsub(earnings, "€", "")
+  earnings = string.gsub(string.gsub(earnings, "€", ""), ",", ".")
 
   invested = content:xpath('/html/body/div[1]/div[2]/div[3]/div/h2/div/div/div/div[3]/h2'):text()
-  invested = string.gsub(invested, "€", "")
+  invested = string.gsub(string.gsub(invested, "€", ""), ",", ".")
 
   local security = {
     name = "Account Summary",
-    price = tonumber(invested + available),
-    purchasePrice = tonumber(invested + available - earnings),
+    price = invested + available,
+    purchasePrice = invested + available - earnings,
     quantity = 1,
     curreny = nil,
   }
