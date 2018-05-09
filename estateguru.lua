@@ -17,8 +17,8 @@ end
 function InitializeSession (protocol, bankCode, username, username2, password, username3)
   connection = Connection()
   content, charset, mimeType = connection:request("POST",
-  "https://estateguru.co/j_spring_security_check",
-  "j_username=" .. username .. "&j_password=" .. password,
+  "https://estateguru.co/login/authenticate",
+  "username=" .. username .. "&password=" .. password,
   "application/x-www-form-urlencoded; charset=UTF-8")
 
   if string.match(connection:getBaseURL(), 'Sign In or Register') then
