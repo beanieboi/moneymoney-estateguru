@@ -17,7 +17,7 @@ end
 function InitializeSession (protocol, bankCode, username, username2, password, username3)
   connection = Connection()
   content, charset, mimeType = connection:request("POST",
-  "https://estateguru.co/login/authenticate",
+  "https://estateguru.co/portal/login/authenticate",
   "username=" .. username .. "&password=" .. password,
   "application/x-www-form-urlencoded; charset=UTF-8")
 
@@ -40,21 +40,20 @@ end
 
 function RefreshAccount (account, since)
   local s = {}
-  content = HTML(connection:get("https://estateguru.co/investment/main"))
+  content = HTML(connection:get("https://estateguru.co/portal/portfolio/overview"))
 
-  available = content:xpath('/html/body/div[1]/div[2]/div[3]/div/h2/div/div/div/div[1]/h2'):text()
-  available = string.gsub(string.gsub(available, "€", ""), ",", ".")
+  account_value = content:xpath('/html/body/section/div/div/div/div[2]/section[1]/div/div/div[3]/div/div[2]/ul/li[1]/div[1]/span[2]'):text()
+  account_value = string.gsub(string.gsub(account_value, "€", ""), ",", ".")
 
-  earnings = content:xpath('/html/body/div[1]/div[2]/div[3]/div/h2/div/div/div/div[2]/h2'):text()
-  earnings = string.gsub(string.gsub(earnings, "€", ""), ",", ".")
-
-  invested = content:xpath('/html/body/div[1]/div[2]/div[3]/div/h2/div/div/div/div[3]/h2'):text()
+  invested = content:xpath('//*[@id="collapse0"]/ul/li[1]/div/span[2]'):text()
   invested = string.gsub(string.gsub(invested, "€", ""), ",", ".")
+
+  print(invested)
 
   local security = {
     name = "Account Summary",
-    price = invested + available,
-    purchasePrice = invested + available - earnings,
+    price = account_value,
+    purchasePrice = invested,
     quantity = 1,
     curreny = nil,
   }
