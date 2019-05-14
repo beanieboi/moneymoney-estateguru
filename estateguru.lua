@@ -43,10 +43,10 @@ function RefreshAccount (account, since)
   content = HTML(connection:get("https://estateguru.co/portal/portfolio/overview?lang=en"))
 
   account_value = content:xpath('/html/body/section/div/div/div/div[2]/section[1]/div/div/div[3]/div/div[2]/ul/li[1]/div[1]/span[2]'):text()
-  account_value = string.gsub(account_value, "€", "")
+  account_value = string.gsub(string.gsub(account_value, "€", ""), ",", "")
 
   invested = content:xpath('//*[@id="collapse0"]/ul/li[1]/div/span[2]'):text()
-  invested = string.gsub(invested, "€", "")
+  invested = string.gsub(string.gsub(invested, "€", ""), ",", "")
 
   print("account value: " .. account_value)
   print("invested: " .. invested)
