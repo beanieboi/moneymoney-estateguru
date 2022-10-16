@@ -1,68 +1,180 @@
-WebBanking{
-  version = 1.0,
-  url = "https://estateguru.co",
-  description = "Estateguru",
-  services= { "Estateguru" },
+WebBanking {
+    version = 1.1,
+    url = "https://estateguru.co",
+    description = "Estateguru",
+    services = {"Estateguru"}
 }
 
 local currency = "EUR" -- fixme: Don't hardcode
 local currencyName = "EUR" -- fixme: Don't hardcode
 local connection
-local apiKey
 
-function SupportsBank (protocol, bankCode)
-  return protocol == ProtocolWebBanking and bankCode == "Estateguru"
+local credentialCache = {}
+
+function SupportsBank(protocol, bankCode)
+    return protocol == ProtocolWebBanking and bankCode == "Estateguru"
 end
 
-function InitializeSession (protocol, bankCode, username, username2, password, username3)
-  connection = Connection()
-  content, charset, mimeType = connection:request("POST",
-  "https://estateguru.co/portal/login/authenticate",
-  "username=" .. MM.urlencode(username) .. "&password=" .. MM.urlencode(password),
-  "application/x-www-form-urlencoded; charset=UTF-8")
+local function requestJSON(method, url, data)
+    headers = {
+        accept = "application/json"
+    }
 
-  if string.match(connection:getBaseURL(), 'Sign In or Register') then
-      return LoginFailed
-  end
+    content, charset, mimeType = connection:request(method, url, JSON():set(data):json(), "application/json", headers)
+
+    return JSON(content):dictionary()
 end
 
-function ListAccounts (knownAccounts)
-  local account = {
-    name = "Estateguru",
-    accountNumber = "Estateguru",
-    currency = currency,
-    portfolio = true,
-    type = "AccountTypePortfolio"
-  }
+local function request2FA(username, password)
+    data = {
+        username = username,
+        password = password
+    }
 
-  return {account}
+    response = requestJSON("POST", "https://account.estateguru.co/api/login/2fa/resend", data)
+
+    if response['status'] ~= 200 then
+        return LoginFailed
+    end
+
+    credentialCache = {
+        username = username,
+        password = password
+    }
+
+    return {
+        title = "Two-step authentication",
+        challenge = "We sent a verification code to the phone number attached to your account. Please enter it here to log in.",
+        label = "SMS-Code"
+    }
+
 end
 
-function RefreshAccount (account, since)
-  local s = {}
-  content = HTML(connection:get("https://estateguru.co/portal/portfolio/overview?lang=en"))
+local function authenticatePass(username, password)
+    data = {
+        username = username,
+        password = password,
+        rememberMe = false
+    }
 
-  account_value = content:xpath('/html/body/section/div/div/div/div[2]/section[1]/div/div/div[3]/div/div[2]/ul/li[1]/div[1]/span[2]'):text()
-  account_value = string.gsub(string.gsub(account_value, "€", ""), ",", "")
+    response = requestJSON("POST", "https://account.estateguru.co/api/login", data)
 
-  invested = content:xpath('//*[@id="collapse0"]/ul/li[1]/div/span[2]'):text()
-  invested = string.gsub(string.gsub(invested, "€", ""), ",", "")
+    if response['status'] ~= 200 then
+        return LoginFailed
+    end
 
-  print("account value: " .. account_value)
-  print("invested: " .. invested)
+    if response['twoFactorAuthenticationMethods'][1] ~= "SMS" then
+        return LoginFailed
+    end
 
-  local security = {
-    name = "Account Summary",
-    price = account_value,
-    purchasePrice = invested,
-    quantity = 1,
-    curreny = nil,
-  }
-
-  table.insert(s, security)
-
-  return {securities = s}
+    return request2FA(username, password)
 end
 
-function EndSession ()
+local function switchAccount()
+
+    headers = {
+        accept = "application/json"
+    }
+
+    content, charset, mimeType = connection:request("GET", "https://account.estateguru.co/api/user/info?username=" ..
+        MM.urlencode(credentialCache.username), "", headers)
+
+    response = JSON(content):dictionary()
+
+    content, charset, mimeType = connection:request("POST", "https://account.estateguru.co/api/account/" ..
+        response['defaultAccountId'] .. "/switch", "application/x-www-form-urlencoded; charset=UTF-8", headers)
+
+    response = JSON(content):dictionary()
+
+    if response['status'] ~= 200 then
+        return "Could not switch account."
+    end
+
+    if response['token'] == '' then
+        return "No token token received. Is this a bug?"
+    end
+
+    return nil
+end
+
+local function authenticate2FA(username, password, code)
+    data = {
+        username = username,
+        password = password,
+        twoFactorOtp = code,
+        rememberMe = false
+    }
+
+    response = requestJSON("POST", "https://account.estateguru.co/api/login", data)
+
+    -- flush credentials password
+    credentialCache.password = nil
+
+    if response['status'] ~= 200 then
+        return "Incorrect 2FA Code."
+    end
+
+    if response['token'] == '' then
+        return "No token token received. Is this a bug?"
+    end
+
+    return switchAccount()
+end
+
+function InitializeSession2(protocol, bankCode, step, credentials, interactive)
+    if step == 1 then
+        connection = Connection()
+        return authenticatePass(credentials[1], credentials[2])
+    elseif step == 2 then
+        return authenticate2FA(credentialCache.username, credentialCache.password, credentials[1])
+    end
+end
+
+function ListAccounts(knownAccounts)
+    local account = {
+        name = "Estateguru",
+        accountNumber = "Estateguru",
+        currency = currency,
+        portfolio = true,
+        type = "AccountTypePortfolio"
+    }
+
+    return {account}
+end
+
+function RefreshAccount(account, since)
+    local s = {}
+    content = HTML(connection:get("https://app.estateguru.co/portfolio/overview?lang=en"))
+
+    account_value = content:xpath(
+        '/html/body/section/div/div/div/div/section[1]/div/div/div[3]/div/div[2]/ul/li[1]/div[1]/span[2]'):text()
+    account_value = string.gsub(string.gsub(account_value, "€", ""), ",", "")
+
+    invested = content:xpath(
+        '/html/body/section/div/div/div/div/section[1]/div/div/div[3]/div/div[2]/ul/li[2]/div[1]/span[2]'):text()
+    invested = string.gsub(string.gsub(string.gsub(string.gsub(invested, "€", ""), ",", ""), "-", ""), "%s+", "")
+
+    print("account value: " .. account_value)
+    print("invested: " .. invested)
+
+    local security = {
+        name = "Account Summary",
+        price = account_value,
+        purchasePrice = invested,
+        quantity = 1,
+        curreny = nil
+    }
+
+    table.insert(s, security)
+
+    return {
+        securities = s
+    }
+end
+
+function EndSession()
+    content, charset, mimeType = connection:request("POST", "https://account.estateguru.co/api/logout",
+        "application/x-www-form-urlencoded; charset=UTF-8", headers)
+
+    return nil
 end
