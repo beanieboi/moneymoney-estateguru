@@ -124,6 +124,9 @@ end
 function InitializeSession2(protocol, bankCode, step, credentials, interactive)
     if step == 1 then
         connection = Connection()
+        -- Enforce english language
+        connection:setCookie("lng=en-US; path=/")
+        connection:setCookie("portal.lang=en; path=/")
         return authenticatePass(credentials[1], credentials[2])
     elseif step == 2 then
         return authenticate2FA(credentialCache.username, credentialCache.password, credentials[1])
