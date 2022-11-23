@@ -139,6 +139,7 @@ function InitializeSession2(protocol, bankCode, step, credentials, interactive)
         -- Enforce english language
         connection:setCookie("lng=en-US; path=/")
         connection:setCookie("portal.lang=en; path=/")
+        connection.language = "en-gb"
         return authenticatePass(credentials[1], credentials[2])
     elseif step == 2 then
         return authenticate2FA(credentialCache.username, credentialCache.password, credentials[1])
