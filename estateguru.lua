@@ -25,16 +25,18 @@ local function requestJSON(method, url, data)
     return JSON(content):dictionary()
 end
 
-local function request2FA(username, password)
-    data = {
-        username = username,
-        password = password
-    }
+local function request2FA(username, password, sms)
+    if sms then
+        data = {
+            username = username,
+            password = password
+        }
 
-    response = requestJSON("POST", "https://account.estateguru.co/api/login/2fa/resend", data)
+        response = requestJSON("POST", "https://account.estateguru.co/api/login/2fa/resend", data)
 
-    if response['status'] ~= 200 then
-        return LoginFailed
+        if response['status'] ~= 200 then
+            return LoginFailed
+        end
     end
 
     credentialCache = {
@@ -42,10 +44,18 @@ local function request2FA(username, password)
         password = password
     }
 
+    if sms then
+        return {
+            title = "Two-step authentication",
+            challenge = "We sent a verification code to the phone number attached to your account. Please enter it here to log in.",
+            label = "SMS-Code"
+        }
+    end
+
     return {
         title = "Two-step authentication",
-        challenge = "We sent a verification code to the phone number attached to your account. Please enter it here to log in.",
-        label = "SMS-Code"
+        challenge = "Please enter the two-step authentication code provided by the authenticator app.",
+        label = "Authenticator-Code"
     }
 
 end
@@ -63,11 +73,13 @@ local function authenticatePass(username, password)
         return LoginFailed
     end
 
-    if response['twoFactorAuthenticationMethods'][1] ~= "SMS" then
-        return LoginFailed
+    if response['twoFactorAuthenticationMethods'][1] == "SMS" then
+        return request2FA(username, password, true)
+    elseif response['twoFactorAuthenticationMethods'][1] == "GOOGLE" then
+        return request2FA(username, password, false)
     end
 
-    return request2FA(username, password)
+    return LoginFailed
 end
 
 local function switchAccount()
@@ -127,7 +139,6 @@ function InitializeSession2(protocol, bankCode, step, credentials, interactive)
         -- Enforce english language
         connection:setCookie("lng=en-US; path=/")
         connection:setCookie("portal.lang=en; path=/")
-        connection.language = "en-gb"
         return authenticatePass(credentials[1], credentials[2])
     elseif step == 2 then
         return authenticate2FA(credentialCache.username, credentialCache.password, credentials[1])
