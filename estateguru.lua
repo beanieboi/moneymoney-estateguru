@@ -1,5 +1,5 @@
 WebBanking {
-    version = 1.1,
+    version = 1.2,
     url = "https://estateguru.co",
     description = "Estateguru",
     services = {"Estateguru"}
@@ -160,14 +160,14 @@ end
 
 function RefreshAccount(account, since)
     local s = {}
-    content = HTML(connection:get("https://app.estateguru.co/portfolio/overview?lang=en"))
+    content = HTML(connection:get("https://app.estateguru.co/portfolio/ajaxFillAccountAndLoanData"))
 
     account_value = content:xpath(
-        '/html/body/section/div/div/div/div/section[1]/div/div/div[3]/div/div[2]/ul/li[1]/div[1]/span[2]'):text()
+        '/html/body/div/div[3]/div/div[2]/ul/li[1]/div[1]/span[2]'):text()
     account_value = string.gsub(string.gsub(account_value, "€", ""), ",", "")
 
     invested = content:xpath(
-        '/html/body/section/div/div/div/div/section[1]/div/div/div[3]/div/div[2]/ul/li[2]/div[1]/span[2]'):text()
+        '/html/body/div/div[3]/div/div[2]/ul/li[2]/div[1]/span[2]'):text()
     invested = string.gsub(string.gsub(string.gsub(string.gsub(invested, "€", ""), ",", ""), "-", ""), "%s+", "")
 
     print("account value: " .. account_value)
