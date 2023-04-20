@@ -1,5 +1,5 @@
 WebBanking {
-    version = 1.2,
+    version = 1.3,
     url = "https://estateguru.co",
     description = "Estateguru",
     services = {"Estateguru"}
@@ -82,6 +82,10 @@ local function authenticatePass(username, password)
     return LoginFailed
 end
 
+local function hasToken(response)
+    return response['token'] ~= nil and response['token'] ~= ''
+end
+
 local function switchAccount()
 
     headers = {
@@ -98,11 +102,7 @@ local function switchAccount()
 
     response = JSON(content):dictionary()
 
-    if response['status'] ~= 200 then
-        return "Could not switch account."
-    end
-
-    if response['token'] == '' then
+    if not hasToken(response) then
         return "No token token received. Is this a bug?"
     end
 
@@ -122,11 +122,7 @@ local function authenticate2FA(username, password, code)
     -- flush credentials password
     credentialCache.password = nil
 
-    if response['status'] ~= 200 then
-        return "Incorrect 2FA Code."
-    end
-
-    if response['token'] == '' then
+    if not hasToken(response) then
         return "No token token received. Is this a bug?"
     end
 
